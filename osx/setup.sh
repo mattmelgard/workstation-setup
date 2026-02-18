@@ -28,15 +28,19 @@ fi
 echo ">> Logging you in to 1Password. You may need to enter your login credentials below..."
 eval $(op signin)
 
+# Create projects directory structure
+PROJECTS_DIR="$HOME/projects"
+echo ">> Creating projects directory structure..."
+mkdir -p "$PROJECTS_DIR/oss"
+mkdir -p "$PROJECTS_DIR/personal"
+
 # Clone my private dotfiles repo
-PERSONAL_REPOS_DIR="$HOME/personal"
-DOTFILES_REPO_PATH="$PERSONAL_REPOS_DIR/dotfiles"
+DOTFILES_REPO_PATH="$PROJECTS_DIR/personal/dotfiles"
 if [ ! -d "$DOTFILES_REPO_PATH" ]; then
     echo ">> Grabbing Github SSH key..."
     ssh-add - <<< $(op read 'op://SSH Keys/Github SSH Key/private key')
     echo ">> Cloning dotfiles repo..."
-    mkdir -p "$PERSONAL_REPOS_DIR"
-    git clone giqt@github.com:mattusaur/dotfiles.git "$DOTFILES_REPO_PATH"
+    git clone git@github.com:mattusaur/dotfiles.git "$DOTFILES_REPO_PATH"
 else
     echo ">> Dotfiles repo already found at $DOTFILES_REPO_PATH. Continuing with setup..."
 fi
@@ -45,50 +49,34 @@ echo ">> Installing brew packages from the dotfiles Brewfile..."
 # NOTE: Ignores existing applications rather than overwrite them.
 brew bundle --file "$DOTFILES_REPO_PATH/Brewfile" || true
 
-if [ ! -f "$HOME/.gitconfig" ]; then
-    echo ">> Configuring Git using dotfiles..."
-    cp "$DOTFILES_REPO_PATH/.gitconfig" "$HOME/"
-else
-    echo ">> .gitconfig file already found... Continuing with setup..."
-fi
+echo ">> Symlinking dotfiles..."
 
-1PASSWORD_SSH_AGENT_CONFIG_DIR="$HOME/.config/1Password/ssh"
-if [ ! -d "$1PASSWORD_SSH_AGENT_CONFIG_DIR" ]
-    echo ">> Configuring the SSH Agent with 1Password SSH Keys using dotfiles..."
-    cp "$DOTFILES_REPO_PATH/ssh/config" "$HOME/.ssh/config"
-    mkdir -p "$1PASSWORD_SSH_AGENT_CONFIG_DIR"
-    cp "$DOTFILES_REPO_PATH/.config/1Password/ssh/agent.toml" "$1PASSWORD_SSH_AGENT_CONFIG_DIR"
-else
-    echo ">> 1Password SSH agent appears to already be configured. Continuing with setup..."
-fi
+# Git.
+ln -sf "$DOTFILES_REPO_PATH/.gitconfig" "$HOME/.gitconfig"
 
-echo ">> Configuring OhMyZsh and PowerLevel10k using dotfiles..."
+# SSH and 1Password SSH agent.
+mkdir -p "$HOME/.ssh"
+ln -sf "$DOTFILES_REPO_PATH/.ssh/config" "$HOME/.ssh/config"
+mkdir -p "$HOME/.config/1Password/ssh"
+ln -sf "$DOTFILES_REPO_PATH/.config/1Password/ssh/agent.toml" "$HOME/.config/1Password/ssh/agent.toml"
+
+# OhMyZsh and PowerLevel10k.
+echo ">> Configuring OhMyZsh and PowerLevel10k..."
 if [ ! -d "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k" ]; then
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
     git clone \
         --depth=1 https://github.com/romkatv/powerlevel10k.git \
         "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
 fi
+ln -sf "$DOTFILES_REPO_PATH/.p10k.zsh" "$HOME/.p10k.zsh"
 
-if [ ! -f "$HOME/.p10k.zsh" ]; then
-    cp "$DOTFILES_REPO_PATH/.p10k.zsh" "$HOME/"
-fi
+# Vim.
+ln -sf "$DOTFILES_REPO_PATH/.vimrc" "$HOME/.vimrc"
 
-if [ ! -f "$HOME/.vimrc" ]; then
-    echo ">> Configuring OhMyZsh and PowerLevel10k using dotfiles..."
-    cp "$DOTFILES_REPO_PATH/.vimrc" "$HOME/"
-else
-    echo ">> A Vim config file was already found... Continuing..."
-fi
-
-if [ ! -f "$HOME/.zshrc" ]; then
-    echo ">> Configuring zsh using dotfiles..."
-    cp "$DOTFILES_REPO_PATH/.zshrc" "$HOME/"
-    cp "$DOTFILES_REPO_PATH/.zprofile" "$HOME/"
-    cp "$DOTFILES_REPO_PATH/.zlogin" "$HOME/"
-else
-    echo ">> Zsh appears to already be configured... Continuing with setup..."
-fi
+# Zsh.
+ln -sf "$DOTFILES_REPO_PATH/.zshrc" "$HOME/.zshrc"
+ln -sf "$DOTFILES_REPO_PATH/.zprofile" "$HOME/.zprofile"
+ln -sf "$DOTFILES_REPO_PATH/.zlogin" "$HOME/.zlogin"
 
 echo ">> Initial setup is complete, but some manual steps are still required:"
 echo ">> First, login with the 1Password desktop application using the credentials below:"
